@@ -38,6 +38,7 @@ const DashboardArticles: React.FC<DashboardArticlesProps> = ({
     tags: '',
     author: 'Admin',
     image: '',
+    photoCourtesy: '',
     readTime: '5 min read',
     isPrime: false,
     isHeadline: false,
@@ -46,6 +47,29 @@ const DashboardArticles: React.FC<DashboardArticlesProps> = ({
   };
 
   const [formData, setFormData] = useState(initialFormState);
+
+  const formatRelativeTime = (dateString: string) => {
+    if (!dateString) return 'Just now';
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    // For older dates, show formatted date
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+    });
+}
 
   const filteredArticles = articles.filter(article =>
     article.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,6 +94,7 @@ const DashboardArticles: React.FC<DashboardArticlesProps> = ({
         tags: article.tags ? (Array.isArray(article.tags) ? article.tags.join(', ') : article.tags) : '',
         author: article.author || 'Admin',
         image: article.image || '',
+        photoCourtesy: article.photo_courtesy || article.photoCourtesy || '',
         readTime: article.readTime || article.read_time || '5 min read',
         isPrime: !!(article.isPrime || article.is_prime),
         isHeadline: !!(article.isHeadline || article.is_headline),
@@ -98,7 +123,8 @@ const DashboardArticles: React.FC<DashboardArticlesProps> = ({
         read_time: formData.readTime,
         categories: formData.categories,
         category: formData.categories.length > 0 ? formData.categories[0] : (formData.category || 'Latest News'),
-        image: formData.image
+        image: formData.image,
+        photo_courtesy: formData.photoCourtesy
       };
 
       if (editingId) {
@@ -246,7 +272,7 @@ const DashboardArticles: React.FC<DashboardArticlesProps> = ({
                           <div className="text-xs text-gray-400 mt-1 flex items-center gap-2">
                             <span>By {article.author}</span>
                             <span className="w-1 h-1 rounded-full bg-gray-300"></span>
-                            <span>{article.date || 'Just now'}</span>
+                            <span>{formatRelativeTime(article.created_at)}</span>
                             {article.status && (
                               <span className={`px-1.5 py-0.5 rounded-[2px] text-[9px] font-bold uppercase tracking-wider ${
                                 article.status === 'Published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
@@ -430,15 +456,26 @@ const DashboardArticles: React.FC<DashboardArticlesProps> = ({
                   <div>
                     <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Featured Image</label>
                     <div className="space-y-3">
-                        <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full border border-gray-200 p-2 text-sm focus:border-[#001733] outline-none rounded-sm bg-white" />
-                        <div className="text-center text-xs text-gray-400 font-bold uppercase tracking-widest">- OR -</div>
-                        <input type="url" value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} className="w-full border border-gray-200 p-3 text-sm focus:border-[#001733] outline-none rounded-sm" placeholder="Enter image URL..." />
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="w-full border border-gray-200 p-2 text-sm focus:border-[#001733] outline-none rounded-sm bg-white" />
+                      <div className="text-center text-xs text-gray-400 font-bold uppercase tracking-widest">- OR -</div>
+                      <input type="url" value={formData.image} onChange={e => setFormData({...formData, image: e.target.value})} className="w-full border border-gray-200 p-3 text-sm focus:border-[#001733] outline-none rounded-sm" placeholder="Enter image URL..." />
                     </div>
                     {formData.image && (
                       <div className="mt-2 aspect-video bg-gray-100 rounded-sm overflow-hidden border border-gray-200">
                         <img src={getImageUrl(formData.image)} alt="Preview" className="w-full h-full object-cover" />
                       </div>
                     )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Photo Courtesy</label>
+                    <input 
+                      type="text" 
+                      value={formData.photoCourtesy} 
+                      onChange={e => setFormData({...formData, photoCourtesy: e.target.value})} 
+                      className="w-full border border-gray-200 p-3 text-sm focus:border-[#001733] outline-none rounded-sm" 
+                      placeholder="e.g., Reuters, Getty Images, AFP"
+                    />
+                    <p className="text-[10px] text-gray-400 mt-1">Image credit/source attribution</p>
                   </div>
                   <div>
                     <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Author</label>

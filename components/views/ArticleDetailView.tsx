@@ -253,13 +253,19 @@ const ArticleDetailView: React.FC = () => {
               </div>
 
               <figure className="mb-12">
-                <div className="aspect-video w-full overflow-hidden bg-gray-100 rounded-sm shadow-xl">
-                  <img src={getImageUrl(article.image)} className="w-full h-full object-cover" alt={article.title} />
-                </div>
-                <figcaption className="mt-4 text-xs text-gray-400 font-medium italic border-l-2 border-gray-200 pl-5">
-                  Photo Credit: The Bold East Africa Intelligence / Reuters.
-                </figcaption>
-              </figure>
+              <div className="aspect-video w-full overflow-hidden bg-gray-100 rounded-sm shadow-xl relative">
+                <img src={getImageUrl(article.image)} className="w-full h-full object-cover" alt={article.title} />
+                {/* {article.photo_courtesy && (
+                  <div className="absolute bottom-3 right-3 bg-gray-800/90 px-3 py-1.5 rounded-sm">
+                    <span className="text-white text-xs font-medium">{article.photo_courtesy}</span>
+                  </div>
+                )} */}
+              </div>
+              <figcaption className="mt-4 text-xs text-gray-400 font-medium italic border-l-2 border-gray-200 pl-5">
+                {/* Photo Credit: The Bold East Africa Intelligence / Reuters. */}
+                {article.photo_courtesy? ` ${article.photo_courtesy}` : 'The Bold East Africa Intelligence'}
+              </figcaption>
+            </figure>
 
               <div className="prose prose-lg md:prose-xl max-w-none text-gray-800 leading-relaxed space-y-6 sm:space-y-10 font-light tracking-wide">
                 <p className="text-lg sm:text-2xl md:text-3xl font-serif italic text-gray-500 mb-12 leading-relaxed border-l-4 border-[#001733] pl-4 sm:pl-10">

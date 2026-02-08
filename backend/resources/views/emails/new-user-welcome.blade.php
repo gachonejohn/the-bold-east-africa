@@ -130,8 +130,8 @@
 
             <p>You can now access The Bold East Africa platform and start creating amazing content!</p>
 
-            <a href="{{ $appUrl }}/login" class="cta-button">Go to Platform</a>
-
+            <!-- <a href="{{ $appUrl }}/login" class="cta-button">Go to Platform</a> -->
+            <a href="https://theboldeastafrica.com/login" class="cta-button">Go to Platform</a>
             <div class="divider"></div>
 
             <p><strong>Getting Started:</strong></p>

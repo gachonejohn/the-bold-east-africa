@@ -53,6 +53,19 @@ export const Footer: React.FC = () => {
           </Link>
         </div>
 
+        {/* Story Submission Section */}
+        <div className="mb-8 text-center">
+          <p className="text-gray-300 text-sm">
+            Got a story that matters? We want to hear from you.{' '}
+            <a 
+              href="mailto:stories@theboldeastafrica.com" 
+              className="text-[#e5002b] hover:text-white font-semibold transition-colors"
+            >
+              stories@theboldeastafrica.com
+            </a>
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
           <div className="lg:col-span-2">
             <div className="text-2xl font-black logo-brand italic mb-4">The Bold East Africa</div>
