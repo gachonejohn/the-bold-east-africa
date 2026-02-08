@@ -25,7 +25,7 @@ class ArticleController extends Controller
         $allowedFields = [
             'title', 'slug', 'excerpt', 'image', 'category', 'author', 'read_time',
             'is_prime', 'is_headline', 'status', 'meta_tags', 'meta_description',
-            'seo_score', 'content', 'categories', 'tags'
+            'seo_score', 'content', 'categories', 'tags', 'photo_courtesy'
         ];
 
         $cleaned = [];
@@ -105,6 +105,7 @@ class ArticleController extends Controller
                 'meta_description' => 'nullable|string',
                 'seo_score' => 'nullable|integer',
                 'content' => 'nullable',
+                'photo_courtesy' => 'nullable|string',
             ])->validate();
 
             // Image (base64/url/file)
@@ -176,6 +177,7 @@ class ArticleController extends Controller
                 'meta_description' => 'nullable|string',
                 'seo_score' => 'nullable|integer',
                 'content' => 'nullable',
+                'photo_courtesy' => 'nullable|string',
             ])->validate();
 
             // Image (base64/url/file)

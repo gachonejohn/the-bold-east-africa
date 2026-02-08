@@ -6,24 +6,29 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->longText('image')->nullable()->after('last_active');
-            $table->text('bio')->nullable()->after('image');
+            if (!Schema::hasColumn('users', 'image')) {
+                $table->longText('image')->nullable()->after('last_active');
+            }
+
+            if (!Schema::hasColumn('users', 'bio')) {
+                $table->text('bio')->nullable()->after('image');
+            }
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['image', 'bio']);
+            if (Schema::hasColumn('users', 'bio')) {
+                $table->dropColumn('bio');
+            }
+
+            if (Schema::hasColumn('users', 'image')) {
+                $table->dropColumn('image');
+            }
         });
     }
 };

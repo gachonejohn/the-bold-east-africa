@@ -24,6 +24,7 @@ class Article extends Model
         'views',
         'clicks',
         'content',
+        'photo_courtesy',
     ];
 
     protected function casts(): array
