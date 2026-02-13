@@ -13,7 +13,10 @@ class ArticleController extends Controller
 {
     public function index()
     {
-        $articles = Article::orderBy('created_at', 'desc')->get();
+        $articles = Article::orderBy('created_at', 'desc')->get()->map(function ($article) {
+            return $this->normalizeArticleImageUrl($article);
+        });
+        
         return response()->json(['data' => $articles, 'status' => 200]);
     }
 
@@ -79,6 +82,33 @@ class ArticleController extends Controller
         return $validated;
     }
 
+    /**
+     * Normalize article image URL to always return full URL with frontend domain
+     */
+    private function normalizeArticleImageUrl($article)
+    {
+        if (!$article->image) {
+            return $article;
+        }
+
+        $frontendUrl = config('app.url');
+        
+        // If already a full URL
+        if (filter_var($article->image, FILTER_VALIDATE_URL)) {
+            // Replace API domain with frontend domain if present
+            $article->image = str_replace(
+                ['https://api.theboldeastafrica.com', 'http://api.theboldeastafrica.com'],
+                $frontendUrl,
+                $article->image
+            );
+        } else {
+            // Convert relative path to frontend URL
+            $article->image = $frontendUrl . $article->image;
+        }
+        
+        return $article;
+    }
+
     public function store(Request $request)
     {
         try {
@@ -123,7 +153,7 @@ class ArticleController extends Controller
             $article = Article::create($validated);
 
             return response()->json([
-                'data' => $article,
+                'data' => $this->normalizeArticleImageUrl($article),
                 'message' => 'Article created successfully',
                 'status' => 201
             ], 201);
@@ -146,7 +176,10 @@ class ArticleController extends Controller
     public function show(string $id)
     {
         $article = Article::findOrFail($id);
-        return response()->json(['data' => $article, 'status' => 200]);
+        return response()->json([
+            'data' => $this->normalizeArticleImageUrl($article),
+            'status' => 200
+        ]);
     }
 
     public function update(Request $request, string $id)
@@ -196,7 +229,7 @@ class ArticleController extends Controller
             $article->update($validated);
 
             return response()->json([
-                'data' => $article->fresh(),
+                'data' => $this->normalizeArticleImageUrl($article->fresh()),
                 'message' => 'Article updated successfully',
                 'status' => 200
             ]);
@@ -277,18 +310,30 @@ class ArticleController extends Controller
 
     /**
      * Handle image upload (Base64, URL, or multipart file)
+     * Returns full URL with frontend domain for consistency
      */
     private function handleImageUpload($image)
     {
+        $frontendUrl = config('app.url');
+        
         // Multipart file
         if ($image instanceof UploadedFile) {
             $path = $image->store('articles', 'public');
-            return '/storage/' . $path;
+            return $frontendUrl . '/storage/' . $path;
         }
 
-        // If it’s not a string, don’t try regex on it
+        // If it's not a string, don't try regex on it
         if (!is_string($image)) {
             throw new \Exception('Invalid image payload');
+        }
+
+        // If already a full URL, ensure it uses frontend domain
+        if (filter_var($image, FILTER_VALIDATE_URL)) {
+            return str_replace(
+                ['https://api.theboldeastafrica.com', 'http://api.theboldeastafrica.com'],
+                $frontendUrl,
+                $image
+            );
         }
 
         // Base64
@@ -308,10 +353,15 @@ class ArticleController extends Controller
             $filename = 'article_' . time() . '_' . Str::random(10) . '.' . $ext;
             Storage::disk('public')->put('articles/' . $filename, $data);
 
-            return '/storage/articles/' . $filename;
+            return $frontendUrl . '/storage/articles/' . $filename;
         }
 
-        // URL or existing path
+        // If it's a relative path, convert to frontend URL
+        if (str_starts_with($image, '/storage/') || str_starts_with($image, 'storage/')) {
+            return $frontendUrl . (str_starts_with($image, '/') ? $image : '/' . $image);
+        }
+
+        // Return as-is if none of the above
         return $image;
     }
 

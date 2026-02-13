@@ -12,12 +12,60 @@ use Illuminate\Support\Facades\Log;
 class SponsorshipController extends Controller
 {
     /**
+     * Normalize image URL to always return full URL with frontend domain
+     */
+    private function normalizeImageUrl($imageUrl)
+    {
+        if (!$imageUrl) {
+            return null;
+        }
+
+        $frontendUrl = config('app.url');
+        
+        // If already a full URL
+        if (filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+            // Replace API domain with frontend domain if present
+            return str_replace(
+                ['https://api.theboldeastafrica.com', 'http://api.theboldeastafrica.com'],
+                $frontendUrl,
+                $imageUrl
+            );
+        }
+        
+        // If it's a relative path without /storage/, add it
+        if (!str_starts_with($imageUrl, '/storage/') && !str_starts_with($imageUrl, 'storage/')) {
+            $imageUrl = '/storage/' . $imageUrl;
+        }
+        
+        // Convert relative path to frontend URL
+        return $frontendUrl . $imageUrl;
+    }
+
+    /**
+     * Normalize sponsorship images in collection or single model
+     */
+    private function normalizeSponsorshipImages($sponsorships)
+    {
+        if ($sponsorships instanceof \Illuminate\Support\Collection) {
+            return $sponsorships->map(function ($sponsorship) {
+                $sponsorship->image = $this->normalizeImageUrl($sponsorship->image);
+                return $sponsorship;
+            });
+        }
+        
+        $sponsorships->image = $this->normalizeImageUrl($sponsorships->image);
+        return $sponsorships;
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()
     {
         try {
             $sponsorships = Sponsorship::orderBy('created_at', 'desc')->get();
+            $sponsorships = $this->normalizeSponsorshipImages($sponsorships);
+            
             return response()->json([
                 'data' => $sponsorships,
                 'message' => 'Sponsorships retrieved successfully',
@@ -38,6 +86,8 @@ class SponsorshipController extends Controller
     public function store(Request $request)
     {
         try {
+            $frontendUrl = config('app.url');
+            
             $validated = $request->validate([
                 'client_name' => 'required|string|max:255',
                 'campaign_name' => 'required|string|max:255',
@@ -54,10 +104,11 @@ class SponsorshipController extends Controller
                 $file = $request->file('image');
                 $filename = 'sponsorship_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs('sponsorships', $filename, 'public');
-                $validated['image'] = $path;
+                $validated['image'] = $frontendUrl . '/storage/' . $path;
             }
 
             $sponsorship = Sponsorship::create($validated);
+            $sponsorship = $this->normalizeSponsorshipImages($sponsorship);
 
             return response()->json([
                 'data' => $sponsorship,
@@ -87,6 +138,8 @@ class SponsorshipController extends Controller
     {
         try {
             $sponsorship = Sponsorship::findOrFail($id);
+            $sponsorship = $this->normalizeSponsorshipImages($sponsorship);
+            
             return response()->json([
                 'data' => $sponsorship,
                 'message' => 'Sponsorship retrieved successfully',
@@ -106,6 +159,7 @@ class SponsorshipController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            $frontendUrl = config('app.url');
             $sponsorship = Sponsorship::findOrFail($id);
 
             $validated = $request->validate([
@@ -120,18 +174,27 @@ class SponsorshipController extends Controller
             ]);
 
             if ($request->hasFile('image')) {
-                // Delete old image
-                if ($sponsorship->image && Storage::disk('public')->exists($sponsorship->image)) {
-                    Storage::disk('public')->delete($sponsorship->image);
+                // Delete old image - handle both full URLs and relative paths
+                if ($sponsorship->image) {
+                    $oldPath = $sponsorship->image;
+                    // Remove frontend URL if present
+                    $oldPath = str_replace($frontendUrl, '', $oldPath);
+                    // Remove /storage/ prefix
+                    $oldPath = str_replace('/storage/', '', $oldPath);
+                    
+                    if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+                        Storage::disk('public')->delete($oldPath);
+                    }
                 }
 
                 $file = $request->file('image');
                 $filename = 'sponsorship_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs('sponsorships', $filename, 'public');
-                $validated['image'] = $path;
+                $validated['image'] = $frontendUrl . '/storage/' . $path;
             }
 
             $sponsorship->update($validated);
+            $sponsorship = $this->normalizeSponsorshipImages($sponsorship->fresh());
 
             return response()->json([
                 'data' => $sponsorship,
@@ -159,10 +222,19 @@ class SponsorshipController extends Controller
     public function destroy($id)
     {
         try {
+            $frontendUrl = config('app.url');
             $sponsorship = Sponsorship::findOrFail($id);
 
-            if ($sponsorship->image && Storage::disk('public')->exists($sponsorship->image)) {
-                Storage::disk('public')->delete($sponsorship->image);
+            if ($sponsorship->image) {
+                $path = $sponsorship->image;
+                // Remove frontend URL if present
+                $path = str_replace($frontendUrl, '', $path);
+                // Remove /storage/ prefix
+                $path = str_replace('/storage/', '', $path);
+                
+                if ($path && Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
             }
 
             $sponsorship->delete();

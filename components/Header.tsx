@@ -22,20 +22,21 @@ interface CategoryItem {
   name: string;
   slug: string;
   color?: string;
+  subcategories?: CategoryItem[];
 }
 
 // Fallback categories in case API fails
 const FALLBACK_CATEGORIES: CategoryItem[] = [
-  { name: 'Latest News', slug: 'latest' },
-  { name: 'Politics', slug: 'politics' },
-  { name: 'Corporate', slug: 'corporate' },
-  { name: 'Health', slug: 'health' },
-  { name: 'Law & Order', slug: 'law-order' },
-  { name: 'Startup & Tech', slug: 'startup-tech' },
-  { name: 'Career', slug: 'career' },
-  { name: 'Sports', slug: 'sports' },
-  { name: 'Opinions', slug: 'opinion' },
-  { name: 'Lifestyle', slug: 'lifestyle' }
+  { name: 'Latest News', slug: 'latest', subcategories: [] },
+  { name: 'Politics', slug: 'politics', subcategories: [] },
+  { name: 'Corporate', slug: 'corporate', subcategories: [] },
+  { name: 'Health', slug: 'health', subcategories: [] },
+  { name: 'Law & Order', slug: 'law-order', subcategories: [] },
+  { name: 'Startup & Tech', slug: 'startup-tech', subcategories: [] },
+  { name: 'Career', slug: 'career', subcategories: [] },
+  { name: 'Sports', slug: 'sports', subcategories: [] },
+  { name: 'Opinions', slug: 'opinion', subcategories: [] },
+  { name: 'Lifestyle', slug: 'lifestyle', subcategories: [] }
 ];
 
 export const Header: React.FC = () => {
@@ -60,16 +61,17 @@ export const Header: React.FC = () => {
       try {
         const [articlesRes, categoriesRes] = await Promise.all([
           api.articles.getAll(),
-          api.categories.getAll()
+          api.categories.getTree() 
         ]);
         setAllArticles(articlesRes.data || []);
 
-        // Use API categories if available, fallback to FALLBACK_CATEGORIES
+        // Use API categories tree if available
         if (categoriesRes.data && categoriesRes.data.length > 0) {
           setCategories(categoriesRes.data.map((cat: any) => ({
             name: cat.name,
             slug: cat.slug,
-            color: cat.color
+            color: cat.color,
+            subcategories: cat.subcategories || [] 
           })));
         }
       } catch (error) {
@@ -123,7 +125,7 @@ export const Header: React.FC = () => {
   const formattedDate = currentTime.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <header className="bg-white border-b border-gray-200 shadow-sm sticky-nav">
+    <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
       {/* Top Ticker Bar */}
       <div className="bg-[#001733] py-3 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between">
@@ -190,18 +192,52 @@ export const Header: React.FC = () => {
         </div>
       </div>
 
-      <nav className="hidden md:block bg-white border-t py-3 border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-          <div className="overflow-x-auto no-scrollbar flex-grow">
-            <ul className="flex items-center gap-6 py-2 whitespace-nowrap">
+      {/* Navigation - Removed overflow-x-auto and added proper positioning */}
+      <nav className="hidden md:block bg-white border-t border-gray-100">
+        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+          <div className="flex-grow">
+            <ul className="flex items-center gap-6 flex-wrap">
               {categories.map(cat => (
-                <li key={cat.slug} className="text-xs font-black uppercase  tracking-widest text-[#001733] hover:text-[#e5002b] transition-all relative group">
-                  <Link to={`/category/${cat.slug}`}>{cat.name}</Link>
-                  <span className="absolute -bottom-2 left-0 w-0 h-0.5 bg-[#e5002b] transition-all group-hover:w-full"></span>
+                <li 
+                  key={cat.slug} 
+                  className="text-xs font-black uppercase tracking-widest text-[#001733] hover:text-[#e5002b] transition-all relative group py-2"
+                >
+                  <Link to={`/category/${cat.slug}`} className="flex items-center gap-1">
+                    {cat.name}
+                    {/* Dropdown Icon */}
+                    {cat.subcategories && cat.subcategories.length > 0 && (
+                      <svg className="w-3 h-3 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    )}
+                  </Link>
+                  
+                  {/* Subcategory Dropdown - Added pointer-events-none to parent */}
+                  {cat.subcategories && cat.subcategories.length > 0 && (
+                    <div className="absolute top-full left-0 pt-2 pointer-events-none group-hover:pointer-events-auto">
+                      <div className="w-48 bg-white shadow-xl border border-gray-100 rounded-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                        <ul className="py-2">
+                          {cat.subcategories.map(sub => (
+                            <li key={sub.slug}>
+                              <Link
+                                to={`/category/${sub.slug}`}
+                                className="block px-4 py-2 text-xs font-bold text-gray-600 hover:bg-[#e5002b] hover:text-white transition-colors"
+                              >
+                                {sub.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <span className="absolute -bottom-0 left-0 w-0 h-0.5 bg-[#e5002b] transition-all group-hover:w-full"></span>
                 </li>
               ))}
             </ul>
           </div>
+          
           <div className="flex-shrink-0 ml-6 pl-6 border-l border-gray-200 flex items-center gap-6">
              <div className="relative" ref={searchRef}>
                 <div className="flex items-center">
@@ -283,6 +319,24 @@ export const Header: React.FC = () => {
                         style={{ backgroundColor: cat.color || '#e5002b' }}
                       ></span>
                     </Link>
+                    
+                    {/* Subcategories in Sidebar */}
+                    {cat.subcategories && cat.subcategories.length > 0 && (
+                      <ul className="mt-2 ml-4 space-y-2">
+                        {cat.subcategories.map(sub => (
+                          <li key={sub.slug}>
+                            <Link
+                              to={`/category/${sub.slug}`}
+                              className="text-sm font-medium text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-2"
+                              onClick={() => setIsSidebarOpen(false)}
+                            >
+                              <span className="w-1 h-1 rounded-full" style={{ backgroundColor: sub.color || cat.color || '#e5002b' }}></span>
+                              {sub.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 // Public API routes
 Route::apiResource('articles', ArticleController::class);
+Route::get('categories/tree', [CategoryController::class, 'tree']);
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('campaigns', CampaignController::class);
 Route::apiResource('users', UserController::class);

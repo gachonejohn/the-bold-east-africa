@@ -9,9 +9,52 @@ use Illuminate\Support\Facades\Storage;
 
 class CampaignController extends Controller
 {
+    /**
+     * Normalize image URL to always return full URL with frontend domain
+     */
+    private function normalizeImageUrl($imageUrl)
+    {
+        if (!$imageUrl) {
+            return null;
+        }
+
+        $frontendUrl = config('app.url');
+        
+        // If already a full URL
+        if (filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+            // Replace API domain with frontend domain if present
+            return str_replace(
+                ['https://api.theboldeastafrica.com', 'http://api.theboldeastafrica.com'],
+                $frontendUrl,
+                $imageUrl
+            );
+        }
+        
+        // Convert relative path to frontend URL
+        return $frontendUrl . $imageUrl;
+    }
+
+    /**
+     * Normalize campaign images in collection or single model
+     */
+    private function normalizeCampaignImages($campaigns)
+    {
+        if ($campaigns instanceof \Illuminate\Support\Collection) {
+            return $campaigns->map(function ($campaign) {
+                $campaign->image = $this->normalizeImageUrl($campaign->image);
+                return $campaign;
+            });
+        }
+        
+        $campaigns->image = $this->normalizeImageUrl($campaigns->image);
+        return $campaigns;
+    }
+
     public function index()
     {
         $campaigns = Campaign::orderBy('created_at', 'desc')->get();
+        $campaigns = $this->normalizeCampaignImages($campaigns);
+        
         return response()->json([
             'data' => $campaigns,
             'status' => 200
@@ -44,6 +87,7 @@ class CampaignController extends Controller
 
         // OPTIMIZED: Limit results before random, then shuffle in PHP
         $ads = $query->limit(20)->get()->shuffle();
+        $ads = $this->normalizeCampaignImages($ads);
 
         return response()->json([
             'data' => $ads,
@@ -67,6 +111,8 @@ class CampaignController extends Controller
     public function store(Request $request)
     {
         try {
+            $frontendUrl = config('app.url');
+            
             // Clean all empty strings/arrays to null
             $input = $this->cleanInput($request->all());
             $request->replace($input);
@@ -107,10 +153,11 @@ class CampaignController extends Controller
                 $file = $request->file('image');
                 $filename = 'campaign_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs('campaigns', $filename, 'public');
-                $data['image'] = '/storage/' . $path;
+                $data['image'] = $frontendUrl . '/storage/' . $path;
             }
 
             $campaign = Campaign::create($data);
+            $campaign = $this->normalizeCampaignImages($campaign);
 
             return response()->json([
                 'data' => $campaign,
@@ -134,6 +181,8 @@ class CampaignController extends Controller
     public function show(string $id)
     {
         $campaign = Campaign::findOrFail($id);
+        $campaign = $this->normalizeCampaignImages($campaign);
+        
         return response()->json([
             'data' => $campaign,
             'status' => 200
@@ -143,6 +192,7 @@ class CampaignController extends Controller
     public function update(Request $request, string $id)
     {
         try {
+            $frontendUrl = config('app.url');
             $campaign = Campaign::findOrFail($id);
 
             // Clean all empty strings/arrays to null
@@ -189,10 +239,11 @@ class CampaignController extends Controller
                 $file = $request->file('image');
                 $filename = 'campaign_' . time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $path = $file->storeAs('campaigns', $filename, 'public');
-                $data['image'] = '/storage/' . $path;
+                $data['image'] = $frontendUrl . '/storage/' . $path;
             }
 
             $campaign->update($data);
+            $campaign = $this->normalizeCampaignImages($campaign->fresh());
 
             return response()->json([
                 'data' => $campaign,
@@ -287,6 +338,8 @@ class CampaignController extends Controller
     public function uploadImage(Request $request)
     {
         try {
+            $frontendUrl = config('app.url');
+            
             $request->validate([
                 'image' => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
             ]);
@@ -297,8 +350,8 @@ class CampaignController extends Controller
 
             return response()->json([
                 'data' => [
-                    'path' => '/storage/' . $path,
-                    'url' => Storage::disk('public')->url($path),
+                    'path' => $frontendUrl . '/storage/' . $path,
+                    'url' => $frontendUrl . '/storage/' . $path,
                 ],
                 'message' => 'Image uploaded successfully',
                 'status' => 200

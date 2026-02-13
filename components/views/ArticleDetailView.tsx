@@ -4,6 +4,7 @@ import { api, getImageUrl, getLocalCache, setLocalCache, clearCache } from '../.
 import { AdSlot } from '../AdSlot';
 import { ArticleCard } from '../ArticleCard';
 import { MatchFixturesWidget } from '../MatchFixturesWidget';
+import { formatRelativeTime } from '../../utils/dateUtils';
 
 /**
  * Helper to create SEO-friendly slugs from titles
@@ -227,7 +228,7 @@ const ArticleDetailView: React.FC = () => {
                     <Link to={`/author/${encodeURIComponent(article.author)}`} className="block text-sm font-black uppercase tracking-widest text-black hover:text-[#e5002b] transition-colors">
                       By {article.author}
                     </Link>
-                    <span className="text-xs text-gray-500 font-medium uppercase tracking-tighter">{article.date} • {article.readTime}</span>
+                    <span className="text-xs text-gray-500 font-medium uppercase tracking-tighter">{formatRelativeTime(article.date)} • {article.readTime}</span>
                   </div>
                 </div>
 
