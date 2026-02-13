@@ -313,10 +313,13 @@ export const api = {
   // --- Categories (Resource: /api/categories) ---
   categories: {
     async getAll() {
-      return request<any[]>('/categories', {}, true); // Enable caching
+      return request<any[]>('/categories?flat=true', {}, true); // Enable caching
     },
     async get(id: string) {
       return request<any>(`/categories/${id}`, {}, true); // Enable caching
+    },
+    async getTree(){
+      return request<any[]>('/categories/tree', {}, true);
     },
     async create(category: any) {
       return request<any>('/categories', {
