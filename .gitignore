@@ -48,3 +48,5 @@ playwright-report/
 nul
 *.bat
 *.sh
+
+dev_data.json

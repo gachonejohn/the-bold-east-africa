@@ -25,7 +25,9 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
     name: '',
     slug: '',
     color: '#001733',
-    description: ''
+    description: '',
+    parent_id: null as string | null, 
+    order: 0 
   });
   const [loading, setLoading] = useState(false);
 
@@ -36,7 +38,9 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
         name: category.name,
         slug: category.slug,
         color: category.color || '#001733',
-        description: category.description || ''
+        description: category.description || '',
+        parent_id: category.parent_id || null,
+        order: category.order || 0
       });
     } else {
       setEditingId(null);
@@ -44,7 +48,9 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
         name: '',
         slug: '',
         color: '#001733',
-        description: ''
+        description: '',
+        parent_id: null,
+        order: 0 
       });
     }
     setIsModalOpen(true);
@@ -71,12 +77,22 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
   };
 
   const handleDelete = async (id: string) => {
+    const category = categories.find(c => c.id === id);
+    const hasSubcategories = categories.some(c => c.parent_id === id);
+    
+    if (hasSubcategories) {
+      alert('Cannot delete category with subcategories. Please delete subcategories first.');
+      return;
+    }
+    
     if (!window.confirm('Are you sure you want to delete this category?')) return;
+    
     try {
       await api.categories.delete(id);
       setCategories(categories.filter(c => c.id !== id));
     } catch (error) {
       console.error('Failed to delete category', error);
+      alert('Failed to delete category. Please try again.');
     }
   };
 
@@ -115,6 +131,23 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
     }
   };
 
+  // Get parent category name helper
+  const getParentName = (parentId: string | null) => {
+    if (!parentId) return null;
+    const parent = categories.find(c => c.id === parentId);
+    return parent?.name || null;
+  };
+
+  // Sort categories: parents first, then subcategories
+  const sortedCategories = [...categories].sort((a, b) => {
+    // Parents come before subcategories
+    if (!a.parent_id && b.parent_id) return -1;
+    if (a.parent_id && !b.parent_id) return 1;
+    // Within same level, sort by order then name
+    if (a.order !== b.order) return a.order - b.order;
+    return a.name.localeCompare(b.name);
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
@@ -122,6 +155,14 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
             <div className="bg-white px-4 py-2 rounded-sm border border-gray-200 shadow-sm">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Categories</span>
                 <span className="text-xl font-black text-[#001733]">{categories.length}</span>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-sm border border-gray-200 shadow-sm">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Parent Categories</span>
+                <span className="text-xl font-black text-[#001733]">{categories.filter(c => !c.parent_id).length}</span>
+            </div>
+            <div className="bg-white px-4 py-2 rounded-sm border border-gray-200 shadow-sm">
+                <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Subcategories</span>
+                <span className="text-xl font-black text-[#001733]">{categories.filter(c => c.parent_id).length}</span>
             </div>
         </div>
         <div className="flex gap-3">
@@ -144,30 +185,42 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {categories.map(cat => {
+        {sortedCategories.map(cat => {
           const categoryArticles = articles.filter(a =>
             a.category === cat.name ||
             (a.categories && Array.isArray(a.categories) && a.categories.includes(cat.name))
           );
           const articleCount = categoryArticles.length;
           const views = categoryArticles.reduce((acc, curr) => acc + (curr.views || 0), 0);
+          const parentName = getParentName(cat.parent_id);
 
           return (
           <div key={cat.id} className="bg-white p-6 border border-gray-100 shadow-sm rounded-sm hover:shadow-md transition-all group relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full" style={{ backgroundColor: cat.color }}></div>
+            
+            {/* Badge for subcategory */}
+            {parentName && (
+              <div className="absolute top-2 right-2">
+                <span className="text-[9px] font-bold px-2 py-1 bg-gray-100 text-gray-600 rounded-sm">
+                  Sub of {parentName}
+                </span>
+              </div>
+            )}
+            
             <div className="flex justify-between items-start mb-4 pl-2">
               <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-sm" style={{ backgroundColor: cat.color }}>
                 {cat.name.charAt(0)}
               </div>
               <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => handleOpenModal(cat)} className="text-gray-400 hover:text-[#001733] p-1">
+                <button onClick={() => handleOpenModal(cat)} className="text-gray-400 hover:text-[#001733] p-1" title="Edit">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </button>
-                <button onClick={() => handleDelete(cat.id)} className="text-gray-400 hover:text-red-600 p-1">
+                <button onClick={() => handleDelete(cat.id)} className="text-gray-400 hover:text-red-600 p-1" title="Delete">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </div>
             </div>
+            
             <div className="pl-2">
               <h3 className="text-xl font-bold text-[#001733] mb-1">{cat.name}</h3>
               <p className="text-xs text-gray-400 font-mono mb-4">/{cat.slug}</p>
@@ -192,16 +245,45 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-lg rounded-sm shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-sm font-black uppercase tracking-widest text-[#001733]">{editingId ? 'Edit Category' : 'New Category'}</h3>
+          <div className="bg-white w-full max-w-lg rounded-sm shadow-2xl flex flex-col max-h-[90vh]">
+            {/* Header - fixed */}
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+              <h3 className="text-sm font-black uppercase tracking-widest text-[#001733]">
+                {editingId ? 'Edit Category' : 'New Category'}
+              </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-black">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            
+            {/* Scrollable form area */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto flex-1">
               <div>
-                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Category Name</label>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Parent Category (Optional)
+                </label>
+                <select
+                  value={formData.parent_id || ''}
+                  onChange={e => setFormData({...formData, parent_id: e.target.value || null})}
+                  className="w-full border border-gray-200 p-3 text-sm focus:border-[#001733] outline-none rounded-sm"
+                >
+                  <option value="">None (Top-level category)</option>
+                  {categories
+                    .filter(c => !c.parent_id && c.id !== editingId)
+                    .map(cat => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Category Name
+                </label>
                 <input
                   type="text"
                   required
@@ -211,6 +293,7 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
                   placeholder="e.g. Politics"
                 />
               </div>
+              
               <div>
                 <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Slug</label>
                 <input
@@ -222,8 +305,26 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
                   placeholder="e.g. politics"
                 />
               </div>
+              
               <div>
-                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Color Code</label>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Display Order
+                </label>
+                <input
+                  type="number"
+                  value={formData.order}
+                  onChange={e => setFormData({...formData, order: parseInt(e.target.value) || 0})}
+                  className="w-full border border-gray-200 p-3 text-sm focus:border-[#001733] outline-none rounded-sm"
+                  placeholder="0"
+                  min="0"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Lower numbers appear first</p>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Color Code
+                </label>
                 <div className="flex gap-3">
                   <input
                     type="color"
@@ -240,8 +341,11 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
                   />
                 </div>
               </div>
+              
               <div>
-                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Description (Optional)</label>
+                <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                  Description (Optional)
+                </label>
                 <textarea
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
@@ -250,13 +354,26 @@ const DashboardCategories: React.FC<DashboardCategoriesProps> = ({
                   placeholder="Brief description for SEO..."
                 />
               </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black">Cancel</button>
-                <button type="submit" disabled={loading} className="bg-[#001733] text-white px-6 py-2 text-xs font-black uppercase tracking-widest hover:bg-[#e5002b] transition-colors disabled:opacity-50 rounded-sm">
-                  {loading ? 'Saving...' : 'Save Category'}
-                </button>
-              </div>
             </form>
+            
+            {/* Footer - fixed */}
+            <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 flex-shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setIsModalOpen(false)} 
+                className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                onClick={handleSubmit}
+                disabled={loading} 
+                className="bg-[#001733] text-white px-6 py-2 text-xs font-black uppercase tracking-widest hover:bg-[#e5002b] transition-colors disabled:opacity-50 rounded-sm"
+              >
+                {loading ? 'Saving...' : 'Save Category'}
+              </button>
+            </div>
           </div>
         </div>
       )}

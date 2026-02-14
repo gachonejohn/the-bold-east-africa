@@ -5,7 +5,7 @@ import { LoadingSpinner } from '../common/LoadingSpinner';
 import { Category as CategoryEnum, CategoryModel } from '../../types/models';
 import { AdSlot } from '../AdSlot';
 import { MatchFixturesWidget } from '../MatchFixturesWidget';
-
+import { formatRelativeTime } from '../../utils/dateUtils';
 
 interface Article {
   id: string;
@@ -33,7 +33,7 @@ const HomeView: React.FC = () => {
   const [categories, setCategories] = useState<CategoryModel[]>(cachedCategories?.data || []);
   const [loading, setLoading] = useState(!cachedArticles);
   const [activeFilter, setActiveFilter] = useState<'headline' | 'latest' | 'trending' | 'prime'>('headline');
-  const [visibleCount, setVisibleCount] = useState(8);
+  const [visibleCount, setVisibleCount] = useState(10);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -102,12 +102,12 @@ const HomeView: React.FC = () => {
 
   // OPTIMIZED: Memoize expensive filtering and sorting operations
   const headlineArticles = useMemo(() =>
-    articles.filter(a => a.isHeadline || a.category === 'Headline News' || a.categories?.includes('Headline News')).slice(0, 6),
+    articles.filter(a => a.isHeadline || a.category === 'Headline News' || a.categories?.includes('Headline News')),
     [articles]
   );
-  const mainHeadline = headlineArticles[0];
-  const secondaryHeadlines = headlineArticles.slice(1, 3);
-  const tertiaryHeadlines = headlineArticles.slice(3, 6);
+  // const mainHeadline = headlineArticles[0];
+  // const secondaryHeadlines = headlineArticles.slice(1, 3);
+  // const tertiaryHeadlines = headlineArticles.slice(3, 6);
 
   const primeArticles = useMemo(() => articles.filter(a => a.isPrime), [articles]);
   const trendingArticles = useMemo(() => [...articles].sort((a, b) => (b.views || 0) - (a.views || 0)), [articles]);
@@ -244,7 +244,7 @@ const HomeView: React.FC = () => {
                         <span className="px-2 py-1 bg-[#e5002b]/10 text-[#e5002b] text-[10px] font-black uppercase tracking-widest rounded">
                           {article.category}
                         </span>
-                        <span className="text-xs text-gray-400">{formatDate(article.date)}</span>
+                        <span className="text-xs text-gray-400">{formatRelativeTime(article.date)}</span>
                       </div>
                       <h2 className="text-lg font-bold leading-tight text-[#001733] group-hover:text-[#e5002b] transition-colors mb-3 line-clamp-2">
                         {article.title}
